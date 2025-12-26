@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>webxdc Org Editor</title>
+<style>
+body {margin:0;font-family:monospace;background:#111;color:#eee;height:100vh;display:flex;flex-direction:column;}
+#editor-container {padding:10px;background:#000;color:#fff;width:100%;flex:1;overflow-y:auto;scroll-padding-bottom:50px;}
+textarea.line-editor {width:100%;background:#111;color:#fff;border:none;outline:none;font-family:monospace;font-size:14px;resize:none;padding:2px;}
+textarea.line-editor:focus {background:#222;}
+.h1 { color: #00bfff; font-weight:bold; }
+.h2 { color: #00ff00; font-weight:bold; }
+.h3 { color: #ffa500; font-weight:bold; }
+.h4 { color: #c080ff; font-weight:bold; }
+.todo { color:#ff5555; }
+.doing { color:#ffaa00; }
+.done { color:#55ff55; }
+.todo-state { cursor:pointer;font-weight:bold;margin-right:6px; }
+.arrow { display:inline-block;width:1em;cursor:pointer; }
+.checkbox { cursor:pointer; margin-right:4px; }
+.hidden { display:none; }
+.bold { font-weight:bold; }
+.italic { font-style:italic; }
+div.line { white-space:pre-wrap; cursor:text; padding:1px 0; }
+div.line.current {background:#222;}
+#cli-buttons {background:#222;padding:5px;display:flex;gap:5px;border-top:1px solid #444;}
+.cli-button {background:#333;color:#eee;border:none;padding:2px 6px;cursor:pointer;font-family:monospace;font-size:13px;}
+.cli-button:hover {background:#555;}
+</style>
+</head>
+<body>
+<div id="editor-container"></div>
+<div id="cli-buttons">
+  <button class="cli-button" data-insert="- [ ] ">- [ ]</button>
+  <button class="cli-button" data-insert="* TODO ">* TODO</button>
+  <button class="cli-button" onclick="insertTimestamp()">TIMESTAMP</button>
+</div>
+
+<script>
+const container = document.getElementById("editor-container");
+const STORAGE_KEY = "webxdc_org_editor_lines";
+
+let lines = JSON.parse(localStorage.getItem(STORAGE_KEY) || '["Hello World"]');
+let currentLine = 0;
+const collapsed = new Set();
+let editorTextarea = null;
+
+// --- Hilfsfunktionen ---
+function saveLines() { localStorage.setItem(STORAGE_KEY, JSON.stringify(lines)); }
+function getLevel(line){const m=line.match(/^(\*+)/);return m?m[1].length:0;}
+function hasChildren(index){const level=getLevel(lines[index]);for(let i=index+1;i<lines.length;i++){const l=getLevel(lines[i]);if(l>level||(l===0&&level>0))return true;if(l>0&&l<=level)break;}return false;}
+function isHidden(index){
+  if(index === currentLine) return false; // aktuelle Zeile niemals verstecken
+  for(let i=index-1;i>=0;i--){
+    if(collapsed.has(i)){
+      const li = getLevel(lines[i]);
+      const lc = getLevel(lines[index]);
+      if(lc > li || (lc===0 && li>0)) return true;
+    }
+  }
+  return false;
+}
+
+// --- Inline-Formatierung ---
+function inlineFormat(text){
+  return text.replace(/(\*[^*]+\*|\/[^/]+\/)/g, m=>{
+    if(m.startsWith("*")) return `<span class='bold'>${m}</span>`;
+    if(m.startsWith("/")) return `<span class='italic'>${m}</span>`;
+    return m;
+  });
+}
+
+function formatLine(text,i){
+  const star=text.match(/^(\*+)\s*(.*)$/);
+  if(star){
+    const lvl=star[1].length;
+    let rest=star[2];
+    let status=null;
+    const sm=rest.match(/^(TODO|DOING|DONE)/);
+    if(sm){status=sm[1]; rest=rest.replace(/^(TODO|DOING|DONE)\s+/,"");}
+    const arrow=hasChildren(i)?(collapsed.has(i)?"▶":"▼"):"";
+    const cls=lvl===1?"h1":lvl===2?"h2":lvl===3?"h3":"h4";
+    return `<span class="arrow">${arrow}</span><span class="${cls}">${"*".repeat(lvl)} </span>`+
+           (status?`<span class="todo-state ${status.toLowerCase()}">${status}</span>`:"")+
+           `<span class="${cls}">${inlineFormat(rest)}</span>`;
+  }
+  const cb=text.match(/^(\s*-\s*\[.\]\s*)(.*)/);
+  if(cb){
+    const ch=cb[1].includes("[x]");
+    const displayCB=`<span class="checkbox">${ch?"[x]":"[ ]"}</span>`;
+    return cb[1].replace(/\[.\]/,displayCB)+inlineFormat(cb[2]);
+  }
+  return inlineFormat(text);
+}
+
+// --- Render ---
+function render(){
+  container.innerHTML="";
+  lines.forEach((line,i)=>{
+    if(i===currentLine){
+      if(!editorTextarea){
+        editorTextarea = document.createElement("textarea");
+        editorTextarea.className="line-editor";
+        editorTextarea.addEventListener("input", onInput);
+        editorTextarea.addEventListener("keydown", onKeyDown);
+      }
+      editorTextarea.value = line;
+      editorTextarea.classList.add("current");
+      container.appendChild(editorTextarea);
+      setTimeout(()=>{
+        editorTextarea.focus();
+        editorTextarea.selectionStart = editorTextarea.selectionEnd = editorTextarea.selectionStart || editorTextarea.value.length;
+        editorTextarea.scrollIntoView({block:"center"});
+      },50);
+    } else {
+      const div=document.createElement("div");
+      div.className="line";
+      div.dataset.index=i;
+      if(isHidden(i)) div.classList.add("hidden");
+      div.innerHTML=formatLine(line,i);
+      div.addEventListener("click",e=>{if(e.target===div){currentLine=i; render();}});
+      container.appendChild(div);
+    }
+  });
+}
+
+// --- Editor Events ---
+function onInput(e){ lines[currentLine]=e.target.value; saveLines(); }
+function onKeyDown(e){
+  if(e.key==="Enter"){
+    e.preventDefault();
+    const val=lines[currentLine];
+    let newLine="";
+    const hMatch=val.match(/^(\*+)\s*(TODO|DOING|DONE)?\s*/);
+    const cbMatch=val.match(/^(\s*-\s*\[.\]\s*)/);
+    const listMatch=val.match(/^(\s*-\s*)/);
+    if(hMatch){newLine=hMatch[1]+" "+(hMatch[2]?hMatch[2]+" ":"");}
+    else if(cbMatch){newLine=cbMatch[1];}
+    else if(listMatch){newLine=listMatch[1];}
+    lines.splice(currentLine+1,0,newLine);
+    currentLine++;
+    saveLines();
+    render();
+  }
+}
+
+// --- Click Delegation ---
+container.addEventListener("click",e=>{
+  const div=e.target.closest("div.line");
+  if(!div) return;
+  const idx=Number(div.dataset.index);
+  const line=lines[idx];
+  if(e.target.classList.contains("todo-state")){
+    lines[idx]=line.replace(/(TODO|DOING|DONE)/,m=>m==="TODO"?"DOING":m==="DOING"?"DONE":"TODO");
+    saveLines(); render(); return;
+  }
+  if(e.target.classList.contains("arrow")){
+    const lvl=getLevel(lines[idx]);
+    if(collapsed.has(idx)) collapsed.delete(idx); else collapsed.add(idx);
+    for(let i=idx+1;i<lines.length;i++){
+      const l=getLevel(lines[i]);
+      if(l<=lvl&&l>0) break;
+      const divChild=container.querySelector(`div.line[data-index='${i}']`);
+      if(divChild) divChild.classList.toggle("hidden");
+    }
+    return;
+  }
+  if(e.target.classList.contains("checkbox")){
+    if(line.includes("[ ]")) lines[idx]=line.replace("[ ]","[x]");
+    else lines[idx]=line.replace("[x]","[ ]");
+    saveLines(); render(); return;
+  }
+});
+
+// --- CLI Buttons ---
+document.querySelectorAll(".cli-button").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    const ins=btn.dataset.insert;
+    lines.splice(currentLine+1,0,ins);
+    currentLine++;
+    saveLines();
+    render();
+  });
+});
+
+// --- Insert-Mechanismus ---
+function insertAtCursor(insertText){
+  if(!editorTextarea) return;
+  const val = editorTextarea.value;
+  const pos = editorTextarea.selectionStart;
+  const before = val.slice(0,pos);
+  const after = val.slice(pos);
+  const newVal = before + insertText + after;
+  editorTextarea.value = newVal;
+  editorTextarea.selectionStart = editorTextarea.selectionEnd = pos + insertText.length;
+  lines[currentLine] = newVal;
+  saveLines();
+  // Kein render() → aktuelle Zeile bleibt sichtbar, Text hinter Cursor bleibt
+}
+
+// --- TIMESTAMP ---
+function insertTimestamp(){
+  const now = new Date();
+  const weekdays = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const ts = `[${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${weekdays[now.getDay()]} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}]`;
+  insertAtCursor(ts);
+}
+
+render();
+</script>
+</body>
+</html>
