@@ -1,0 +1,51 @@
+#+TITLE: webxdc Org Editor
+#+DESCRIPTION: Ein minimalistischer, lokal speichernder Org-Mode-Editor für WebXDC-Apps.
+
+* Installation
+
+** Direkt im Browser nutzen
+- Die Datei +index.html+ herunterladen und im Browser öffnen.
+- Der Editor speichert Notizen automatisch im LocalStorage des Browsers.
+
+** In WebXDC/Delta Chat integrieren
+- Die Datei als +.xdc+-Datei speichern (z. B. +org-editor.xdc+).
+- In Delta Chat oder einer WebXDC-fähigen App öffnen oder versenden.
+- Funktioniert offline und synchronisiert sich über WebXDC.
+
+* Funktionen
+
+** Org-Mode-Unterstützung
+- Hierarchische Überschriften mit +*+, +**+, +***+, etc.
+- Aufgabenstatus: +TODO+, +DOING+, +DONE+
+- Checklisten mit +- [ ]+ und +- [x]+
+- Textformatierung: Fett (*text*) und kursiv (/text/)
+
+** Editor-Features
+- Echtzeit-Vorschau beim Bearbeiten
+- Einfaches Hinzufügen und Bearbeiten von Zeilen
+- Kollabierbare Abschnitte für bessere Übersicht
+
+** Export & Import
+- Export als +.org+-Datei oder in die Zwischenablage
+- Import von +.org+- oder +.txt+-Dateien
+
+** Praktische Helfer
+- Zeitstempel mit einem Klick einfügen
+- Automatische Zeilenformatierung beim Drücken von Enter
+
+* Technische Details
+- Speicherung im LocalStorage des Browsers
+- Offline-fähig
+- WebXDC-kompatibel
+
+* Dateistruktur
+- +index.html+: Enthält HTML, CSS und JavaScript
+
+* Beispiel
+#+BEGIN_EXAMPLE
+* TODO Projekt starten
+** [ ] Aufgabenliste erstellen
+** [x] Design entwerfen
+* Notizen
+- Wichtiger Punkt: *Fett* und /kursiv/ formatieren.
+#+END_EXAMPLE
