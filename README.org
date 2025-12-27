@@ -1,45 +1,41 @@
-#+TITLE: webxdc Org Editor
-#+DESCRIPTION: Ein minimalistischer, lokal speichernder Org-Mode-Editor für WebXDC-Apps.
+#+TITLE: Tiny_Org_Mode ein webxdc Org Editor
+
+* Beschreibung
+Ein minimalistischer, lokal speichernder Org-Mode-Editor für WebXDC-Apps.
 
 * Installation
-
 ** Direkt im Browser nutzen
-- Die Datei +index.html+ herunterladen und im Browser öffnen.
-- Der Editor speichert Notizen automatisch im LocalStorage des Browsers.
+- Datei ~index.html~ herunterladen und im Browser öffnen.
+- Notizen werden automatisch im LocalStorage gespeichert.
 
 ** In WebXDC/Delta Chat integrieren
-- Die Datei als +.xdc+-Datei speichern (z. B. +org-editor.xdc+).
-- In Delta Chat oder einer WebXDC-fähigen App öffnen oder versenden.
-- Funktioniert offline und synchronisiert sich über WebXDC.
+- Datei als ~.xdc~-Datei speichern (z. B. ~org-editor.xdc~).
+- In Delta Chat oder einer WebXDC-App öffnen.
 
 * Funktionen
-
 ** Org-Mode-Unterstützung
-- Hierarchische Überschriften mit +*+, +**+, +***+, etc.
-- Aufgabenstatus: +TODO+, +DOING+, +DONE+
-- Checklisten mit +- [ ]+ und +- [x]+
-- Textformatierung: Fett (*text*) und kursiv (/text/)
+- Überschriften: ~* Überschrift 1~, ~** Überschrift 2~, etc.
+- Aufgabenstatus: ~TODO~, ~DOING~, ~DONE~.
+- Checklisten: ~- [ ] Aufgabe~, ~- [x] Erledigt~.
+- Textformatierung: ~*Fett*~, ~/Kursiv/~.
 
 ** Editor-Features
-- Echtzeit-Vorschau beim Bearbeiten
-- Einfaches Hinzufügen und Bearbeiten von Zeilen
-- Kollabierbare Abschnitte für bessere Übersicht
+- Echtzeit-Vorschau.
+- Einfache Zeilenbearbeitung.
+- Ein- und Ausklappen von Abschnitten.
 
 ** Export & Import
-- Export als +.org+-Datei oder in die Zwischenablage
-- Import von +.org+- oder +.txt+-Dateien
+- Export als ~.org~-Datei oder in die Zwischenablage.
+- Import von ~.org~- oder ~.txt~-Dateien.
 
 ** Praktische Helfer
-- Zeitstempel mit einem Klick einfügen
-- Automatische Zeilenformatierung beim Drücken von Enter
+- Zeitstempel einfügen.
+- Automatische Zeilenformatierung mit Enter.
 
 * Technische Details
-- Speicherung im LocalStorage des Browsers
-- Offline-fähig
-- WebXDC-kompatibel
-
-* Dateistruktur
-- +index.html+: Enthält HTML, CSS und JavaScript
+- Speicherung im LocalStorage.
+- Offline-fähig.
+- WebXDC-kompatibel.
 
 * Beispiel
 #+BEGIN_EXAMPLE
