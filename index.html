@@ -16,7 +16,7 @@ textarea.line-editor:focus {background:#222;}
 .doing { color:#ffaa00; }
 .done { color:#55ff55; }
 .todo-state { cursor:pointer;font-weight:bold;margin-right:6px; }
-.arrow { display:inline-block;width:1em;cursor:pointer; }
+.arrow { display:inline-block; width:2ch; text-align:center; cursor:pointer; font-family:monospace; }
 .checkbox { cursor:pointer; margin-right:4px; }
 .hidden { display:none; }
 .bold { font-weight:bold; }
@@ -34,7 +34,10 @@ div.line.current {background:#222;}
   <button class="cli-button" data-insert="- [ ] ">- [ ]</button>
   <button class="cli-button" data-insert="* TODO ">* TODO</button>
   <button class="cli-button" onclick="insertTimestamp()">TIMESTAMP</button>
-</div>
+  <button class="cli-button" onclick="exportLinesAsOrg()">EXPORT</button>
+  <button class="cli-button" onclick="triggerImport()">IMPORT</button>
+  <input type="file" id="import-file" accept=".txt,.org,.json" style="display:none">
+</div> 
 
 <script>
 const container = document.getElementById("editor-container");
@@ -78,7 +81,7 @@ function formatLine(text,i){
     let status=null;
     const sm=rest.match(/^(TODO|DOING|DONE)/);
     if(sm){status=sm[1]; rest=rest.replace(/^(TODO|DOING|DONE)\s+/,"");}
-    const arrow=hasChildren(i)?(collapsed.has(i)?"▶":"▼"):"";
+    const arrow = hasChildren(i) ? (collapsed.has(i) ? '>' : 'v') : ' ';
     const cls=lvl===1?"h1":lvl===2?"h2":lvl===3?"h3":"h4";
     return `<span class="arrow">${arrow}</span><span class="${cls}">${"*".repeat(lvl)} </span>`+
            (status?`<span class="todo-state ${status.toLowerCase()}">${status}</span>`:"")+
@@ -175,7 +178,9 @@ container.addEventListener("click",e=>{
 // --- CLI Buttons ---
 document.querySelectorAll(".cli-button").forEach(btn=>{
   btn.addEventListener("click",()=>{
-    const ins=btn.dataset.insert;
+    const ins = btn.dataset.insert;
+    // Skip buttons that don't provide a data-insert (e.g. TIMESTAMP which uses its own onclick)
+    if (typeof ins === 'undefined') return;
     lines.splice(currentLine+1,0,ins);
     currentLine++;
     saveLines();
@@ -205,6 +210,92 @@ function insertTimestamp(){
   const ts = `[${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${weekdays[now.getDay()]} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}]`;
   insertAtCursor(ts);
 }
+
+// --- EXPORT / IMPORT ---
+function exportLinesAsOrg(){
+  const content = lines.join("\n");
+
+  // 1) Try Web Share API with a file (works on many mobile webviews / DeltaChat)
+  try{
+    if(navigator.canShare){
+      const file = new File([content], 'notes.org', {type: 'text/plain'});
+      if(navigator.canShare({files: [file]})){
+        navigator.share({files: [file], title: 'notes.org'}).catch(()=>{});
+        return;
+      }
+    }
+  }catch(e){/* ignore and fallback */}
+
+  // 2) Try copying to clipboard (DeltaChat webviews often allow clipboard)
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(content).then(()=>{
+      alert('Export: Inhalt in die Zwischenablage kopiert. Füge ihn in DeltaChat ein.');
+    }).catch(()=>{
+      // fallback to opening content in new tab
+      openInNewWindow(content);
+    });
+    return;
+  }
+
+  // 3) Fallback: open content in a new tab/window where the user can copy/save manually
+  openInNewWindow(content);
+}
+
+function openInNewWindow(content){
+  const win = window.open('about:blank','_blank');
+  if(!win){
+    // If popup blocked, fall back to the original download method
+    const blob = new Blob([content], {type: 'text/plain;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'notes.org'; document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    return;
+  }
+  win.document.body.style.background = '#111';
+  win.document.body.style.color = '#eee';
+  win.document.body.style.fontFamily = 'monospace';
+  win.document.body.style.padding = '10px';
+  win.document.title = 'notes.org';
+  const pre = win.document.createElement('pre');
+  pre.textContent = content;
+  win.document.body.appendChild(pre);
+}
+
+
+
+function triggerImport(){
+  const input = document.getElementById('import-file');
+  if(input){ input.value = ''; input.click(); }
+}
+
+function handleImportFile(e){
+  const f = e.target.files && e.target.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    const content = ev.target.result;
+    let newLines;
+    try{
+      if(f.name.match(/\.json$/i) || content.trim().startsWith('[')){
+        newLines = JSON.parse(content);
+        if(!Array.isArray(newLines)) throw 'JSON must be an array of lines';
+      } else {
+        newLines = content.replace(/\r\n/g,'\n').split('\n');
+      }
+      lines = newLines;
+      currentLine = 0;
+      saveLines();
+      render();
+    } catch(err){
+      alert('Import failed: ' + err);
+    }
+  };
+  reader.readAsText(f);
+}
+
+const importInput = document.getElementById('import-file');
+if(importInput) importInput.addEventListener('change', handleImportFile);
 
 render();
 </script>
